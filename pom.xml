@@ -107,16 +107,10 @@
 			<version>${itext-version}</version>
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/javax.json/javax.json-api -->
 		<dependency>
-		    <groupId>javax.json</groupId>
-		    <artifactId>javax.json-api</artifactId>
-		    <version>1.1.2</version>
-		</dependency>
-		<dependency>
-		    <groupId>org.glassfish</groupId>
-		    <artifactId>javax.json</artifactId>
-		    <version>1.1.2</version>
+		    <groupId>org.json</groupId>
+		    <artifactId>json</artifactId>
+		    <version>20160810</version>
 		</dependency>
 		
 		

@@ -1,23 +1,19 @@
 package com.greenvulcano.dcsp.ddt;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringReader;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
 import java.util.Vector;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-
 import org.apache.commons.io.FileUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.greenvulcano.dcsp.ddt.beans.Articolo;
 import com.greenvulcano.dcsp.ddt.beans.DDT;
@@ -64,25 +60,20 @@ public class DdtGenerator {
 		
 	}
 	
-	public DdtGenerator(String json) throws DdtException {
+	public DdtGenerator(String json, Properties properties) throws DdtException {
+
+		this.properties = properties;
+
 		parseDdt(json);
-		
-		InputStream propFile = this.getClass().getClassLoader().getResourceAsStream("ddt.properties");
-		try {
-			this.properties = new Properties();
-			this.properties.load(propFile);
-		} catch (IOException e) {
-			throw new DdtException("cannot read properties file");
-		}
 		
 		totaleArticoli = 0;
 		if(documentoDiTrasporto != null) {
 			totaleArticoli = (documentoDiTrasporto.getArticoli() == null) ? 0 : documentoDiTrasporto.getArticoli().size();
 		}
 		
-		minPrimaPagina = Integer.parseInt(properties.getProperty("pagesize.min.primapagina"));
-		maxPrimaPagina = Integer.parseInt(properties.getProperty("pagesize.max.primapagina"));
-		maxPagina = Integer.parseInt(properties.getProperty("pagesize.max.pagina"));
+		minPrimaPagina = Integer.parseInt(properties.getProperty("DDT_PAGESIZE_MIN_PRIMAPAGINA"));
+		maxPrimaPagina = Integer.parseInt(properties.getProperty("DDT_PAGESIZE_MAX_PRIMAPAGINA"));
+		maxPagina = Integer.parseInt(properties.getProperty("DDT_PAGESIZE_MAX_PAGINA"));
 
 		if(totaleArticoli <= minPrimaPagina) {
 			pagg = 1;
@@ -94,58 +85,66 @@ public class DdtGenerator {
 	}
 
 	private void parseDdt(String json) throws DdtException {
-		JsonReader reader = Json.createReader(new StringReader(json));
-		JsonObject jsonObject = reader.readObject();
+		JSONObject jsonObject = new JSONObject(json);    
 		if(jsonObject != null) {
 			this.documentoDiTrasporto = loadDdtFromJson(jsonObject);
 		}
 	}
-	
-	private DDT loadDdtFromJson(JsonObject jDdt) throws DdtException {
+
+	private DDT loadDdtFromJson(JSONObject jDdt) throws DdtException {
 		DDT ddt = null;
 		DateFormat df = null;
 		if(jDdt != null) {
 			df = new SimpleDateFormat("d/M/yyyy");
 			ddt = new DDT();
-			ddt.setTipoDocumento(jDdt.getString("tipoDocumento", "DDT"));
-			ddt.setDataDocumento(jDdt.getString("dataDocumento", df.format(new Date())));
-			if(jDdt.containsKey("numeroDocumento")) {
+			
+			String tipoDocumento = jDdt.has("numeroDocumento") ? jDdt.getString("tipoDocumento") : "DDT";
+			String dataDocumento = jDdt.has("dataDocumento") ? jDdt.getString("dataDocumento") : df.format(new Date());
+			String causaleTrasporto = jDdt.has("causaleTrasporto") ? jDdt.getString("causaleTrasporto") : "conto vendita";
+			String vettore = jDdt.has("vettore") ? jDdt.getString("vettore") : "";
+			String annotazioni = jDdt.has("annotazioni") ? jDdt.getString("annotazioni") : "";
+
+			ddt.setTipoDocumento(tipoDocumento);
+			ddt.setDataDocumento(dataDocumento);
+			ddt.setCausaleTrasporto(causaleTrasporto);
+			ddt.setVettore(vettore);
+			ddt.setAnnotazioni(annotazioni);
+			
+			if(jDdt.has("numeroDocumento")) {
 				ddt.setNumeroDocumento(jDdt.getString("numeroDocumento"));
 			} else {
 				throw new DdtException("Il numero di documento e' obbligatorio");
 			}
-			ddt.setCausaleTrasporto(jDdt.getString("causaleTrasporto", "conto vendita"));
-			ddt.setVettore(jDdt.getString("vettore", ""));
-			ddt.setAnnotazioni(jDdt.getString("annotazioni", ""));
 
-			if(jDdt.containsKey("mittente")) {
-				JsonObject jMittente = jDdt.getJsonObject("mittente");
+
+			if(jDdt.has("mittente")) {
+				JSONObject jMittente = jDdt.getJSONObject("mittente");
 				ddt.setMittente(loadMittenteFromJson(jMittente));
 			} else {
 				throw new DdtException("Il mittente e' obbligatorio");
 			}
 			
-			if(jDdt.containsKey("destinatario")) {
-				JsonObject jDestinatario = jDdt.getJsonObject("destinatario");
+			if(jDdt.has("destinatario")) {
+				JSONObject jDestinatario = jDdt.getJSONObject("destinatario");
 				ddt.setDestinatario(loadDestinatarioFromJson(jDestinatario));
 			} else {
 				throw new DdtException("Il destinatario e' obbligatorio");
 			}
 			
-			JsonObject jLuogoDestinazione = null;
-			if(jDdt.containsKey("luogoDestinazione")) {
-				jLuogoDestinazione = jDdt.getJsonObject("luogoDestinazione");
+			JSONObject jLuogoDestinazione = null;
+			if(jDdt.has("luogoDestinazione")) {
+				jLuogoDestinazione = jDdt.getJSONObject("luogoDestinazione");
 			}
 			ddt.setLuogoDestinazione(loadLuogoDestinazioneFromJson(jLuogoDestinazione));
 			
-			JsonObject jArticolo = null;
+			JSONObject jArticolo = null;
 			Vector<Articolo>articoli = null;
-			if(jDdt.containsKey("articoli")) {
-				JsonArray jArticoli = jDdt.getJsonArray("articoli");
-				if(jArticoli != null && jArticoli.size() > 0) {
-					articoli = new Vector<Articolo>(jArticoli.size());
-					for(int i=0; i<jArticoli.size(); i++) {
-						jArticolo = jArticoli.getJsonObject(i);
+			if(jDdt.has("articoli")) {
+				JSONArray jArticoli = jDdt.getJSONArray("articoli");
+				if(jArticoli != null && jArticoli.length() > 0) {
+					articoli = new Vector<Articolo>(jArticoli.length());
+					for(int i=0; i<jArticoli.length(); i++) {
+						jArticolo = jArticoli.getJSONObject(i);
 						articoli.add(loadArticoloFromJson(jArticolo));
 					}
 				}
@@ -157,64 +156,69 @@ public class DdtGenerator {
 		return ddt;
 	}
 
-	private Articolo loadArticoloFromJson(JsonObject jArticolo) throws DdtException {
+	private Articolo loadArticoloFromJson(JSONObject jArticolo) throws DdtException {
 		Articolo articolo = null;
 		if(jArticolo != null) {
 			articolo = new Articolo();
-			
-			if(jArticolo.containsKey("codice")) {
+
+			if(jArticolo.has("codice")) {
 				articolo.setCodice(jArticolo.getString("codice"));
 			} else {
 				throw new DdtException("Il codice articolo e' obbligatorio");
 			}
 
-			articolo.setDescrizione(jArticolo.getString("descrizione", ""));
-			articolo.setUm(jArticolo.getString("um", "N"));
-			if(jArticolo.containsKey("quantita")) {
+			if(jArticolo.has("quantita")) {
 				articolo.setQuantita(jArticolo.getString("quantita"));
 			} else {
 				throw new DdtException("Il campo quantita' e' obbligatorio");
 			}
+			
+			String descrizione = jArticolo.has("descrizione") ? jArticolo.getString("descrizione") : "";
+			String um = jArticolo.has("um") ? jArticolo.getString("um") : "";
+			articolo.setDescrizione(descrizione);
+			articolo.setUm(um);
 		}
 		return articolo;
 	}
 
-	private LuogoDestinazione loadLuogoDestinazioneFromJson(JsonObject jLuogoDestinazione) throws DdtException {
+	private LuogoDestinazione loadLuogoDestinazioneFromJson(JSONObject jLuogoDestinazione) throws DdtException {
 		LuogoDestinazione luogoDestinazione = null;
 		if(jLuogoDestinazione != null) {
 			luogoDestinazione = new LuogoDestinazione();
-			luogoDestinazione.setDenominazione(jLuogoDestinazione.getString("denominazione", ""));
-			
-			if(jLuogoDestinazione.containsKey("recapito")) {
-				JsonObject jRecapito = jLuogoDestinazione.getJsonObject("recapito");
+
+			if(jLuogoDestinazione.has("recapito")) {
+				JSONObject jRecapito = jLuogoDestinazione.getJSONObject("recapito");
 				luogoDestinazione.setRecapito(loadRecapitoFromJson(jRecapito));
 			} else {
 				throw new DdtException("Il campo recapito del luogo di destinazione e' obbligatorio");
 			}
+			
+			String denominazione = jLuogoDestinazione.has("denominazione") ? jLuogoDestinazione.getString("denominazione") : "";
+			luogoDestinazione.setDenominazione(denominazione);
 		}
 		
 		return luogoDestinazione;
 	}
 
-	private Mittente loadMittenteFromJson(JsonObject jMittente) throws DdtException {
+	private Mittente loadMittenteFromJson(JSONObject jMittente) throws DdtException {
 		Mittente mittente = null;
 		if(jMittente != null) {
 			mittente = new Mittente();
 			
-			if(jMittente.containsKey("denominazione")) {
+			if(jMittente.has("denominazione")) {
 				mittente.setDenominazione(jMittente.getString("denominazione"));
 			} else {
 				throw new DdtException("Il campo demìnominazione del mittente e' obbligatorio");
 			}
 			
-			if(jMittente.containsKey("partitaIva")) {
+			if(jMittente.has("partitaIva")) {
 				mittente.setPartitaIva(jMittente.getString("partitaIva"));
 			} else {
 				throw new DdtException("Il campo Partita Iva del mittente e' obbligatorio");
 			}
 			
-			if(jMittente.containsKey("indirizzo")) {
-				JsonObject jIndirizzo = jMittente.getJsonObject("indirizzo");
+			if(jMittente.has("indirizzo")) {
+				JSONObject jIndirizzo = jMittente.getJSONObject("indirizzo");
 				mittente.setIndirizzo(loadIndirizzoFromJson(jIndirizzo));
 			} else {
 				throw new DdtException("Il campo indirizzo del mittente e' obbligatorio");
@@ -224,116 +228,126 @@ public class DdtGenerator {
 		return mittente;
 	}
 
-	private Destinatario loadDestinatarioFromJson(JsonObject jDestinatario) throws DdtException {
+	private Destinatario loadDestinatarioFromJson(JSONObject jDestinatario) throws DdtException {
 		Destinatario destinatario = null;
 		if(jDestinatario != null) {
 			destinatario = new Destinatario();
 			
-			if(jDestinatario.containsKey("denominazione")) {
+			if(jDestinatario.has("denominazione")) {
 				destinatario.setDenominazione(jDestinatario.getString("denominazione"));
 			} else {
 				throw new DdtException("Il campo demìnominazione del destinatario e' obbligatorio");
 			}
 
-			if(!jDestinatario.containsKey("partitaIva") && !jDestinatario.containsKey("codiceFiscale")) {
-				throw new DdtException("Partita Iva e Codice Fiscale non possono essere entrambi non valorizzati");
-			}
-			destinatario.setPartitaIva(jDestinatario.getString("partitaIva",""));
-			destinatario.setCodiceFiscale(jDestinatario.getString("codiceFiscale",""));
-			
-			if(jDestinatario.containsKey("indirizzo")) {
-				JsonObject jIndirizzo = jDestinatario.getJsonObject("indirizzo");
+			if(jDestinatario.has("indirizzo")) {
+				JSONObject jIndirizzo = jDestinatario.getJSONObject("indirizzo");
 				destinatario.setIndirizzo(loadIndirizzoFromJson(jIndirizzo));
 			} else {
 				throw new DdtException("Il campo indirizzo del destinatario e' obbligatorio");
 			}
+
+			if(!jDestinatario.has("partitaIva") && !jDestinatario.has("codiceFiscale")) {
+				throw new DdtException("Partita Iva e Codice Fiscale non possono essere entrambi non valorizzati");
+			}
+			
+			String partitaIva = jDestinatario.has("partitaIva") ? jDestinatario.getString("partitaIva") : "";
+			String codiceFiscale = jDestinatario.has("codiceFiscale") ? jDestinatario.getString("codiceFiscale") : "";
+			destinatario.setPartitaIva(partitaIva);
+			destinatario.setCodiceFiscale(codiceFiscale);
 		}
 		
 		return destinatario;
 	}
 
-	private Indirizzo loadIndirizzoFromJson(JsonObject jIndirizzo) throws DdtException {
+	private Indirizzo loadIndirizzoFromJson(JSONObject jIndirizzo) throws DdtException {
 		Indirizzo indirizzo = null;
 		if(jIndirizzo != null) {
 			indirizzo = new Indirizzo();
 			
-			if(jIndirizzo.containsKey("indirizzo")) {
+			if(jIndirizzo.has("indirizzo")) {
 				indirizzo.setIndirizzo(jIndirizzo.getString("indirizzo"));
 			} else {
 				throw new DdtException("Il codice articolo e' obbligatorio");
 			}
 			
-			indirizzo.setNumeroCivico(jIndirizzo.getString("numeroCivico", ""));
-
-			if(jIndirizzo.containsKey("cap")) {
+			if(jIndirizzo.has("cap")) {
 				indirizzo.setCap(jIndirizzo.getString("cap"));
 			} else {
 				throw new DdtException("Il cap e' obbligatorio");
 			}
 			
-			if(jIndirizzo.containsKey("citta")) {
+			if(jIndirizzo.has("citta")) {
 				indirizzo.setCitta(jIndirizzo.getString("citta"));
 			} else {
 				throw new DdtException("La citta' e' obbligatoria");
 			}
 			
-			if(jIndirizzo.containsKey("provincia")) {
+			if(jIndirizzo.has("provincia")) {
 				indirizzo.setProvincia(jIndirizzo.getString("provincia"));
 			} else {
 				throw new DdtException("La provincia e' obbligatoria");
 			}
 			
-			indirizzo.setTelefono(jIndirizzo.getString("telefono", ""));
-			indirizzo.setFax(jIndirizzo.getString("fax", ""));
-			indirizzo.setEmail(jIndirizzo.getString("email", ""));
+			String numeroCivico = jIndirizzo.has("numeroCivico") ? jIndirizzo.getString("numeroCivico") : "";
+			String telefono = jIndirizzo.has("telefono") ? jIndirizzo.getString("telefono") : "";
+			String fax = jIndirizzo.has("fax") ? jIndirizzo.getString("fax") : "";
+			String email = jIndirizzo.has("email") ? jIndirizzo.getString("email") : "";
+			indirizzo.setNumeroCivico(numeroCivico);
+			indirizzo.setTelefono(telefono);
+			indirizzo.setFax(fax);
+			indirizzo.setEmail(email);
 		}
 		return indirizzo;
 	}
 
-	private Recapito loadRecapitoFromJson(JsonObject jRecapito) throws DdtException {
+	private Recapito loadRecapitoFromJson(JSONObject jRecapito) throws DdtException {
 		Recapito recapito = null;
 		if(jRecapito != null) {
 			recapito = new Recapito();
 			
-			if(jRecapito.containsKey("indirizzo")) {
+			if(jRecapito.has("indirizzo")) {
 				recapito.setIndirizzo(jRecapito.getString("indirizzo"));
 			} else {
 				throw new DdtException("Il campo indirizzo del recapito e' obbligatorio");
 			}
 
-			recapito.setNumeroCivico(jRecapito.getString("numeroCivico", ""));
-
-			if(jRecapito.containsKey("cap")) {
+			if(jRecapito.has("cap")) {
 				recapito.setCap(jRecapito.getString("cap"));
 			} else {
 				throw new DdtException("Il campo cap del recapito e' obbligatorio");
 			}
 
-			if(jRecapito.containsKey("citta")) {
+			if(jRecapito.has("citta")) {
 				recapito.setCitta(jRecapito.getString("citta"));
 			} else {
 				throw new DdtException("Il campo citta' del recapito e' obbligatorio");
 			}
 
-			if(jRecapito.containsKey("provincia")) {
+			if(jRecapito.has("provincia")) {
 				recapito.setProvincia(jRecapito.getString("provincia"));
 			} else {
 				throw new DdtException("Il campo provincia del recapito e' obbligatorio");
 			}
+			String numeroCivico = jRecapito.has("numeroCivico") ? jRecapito.getString("numeroCivico") : "";
+			recapito.setNumeroCivico(numeroCivico);
 		}
 		return recapito;
 	}
 
+
 	public static void main(String[] args) {
 		String dcspPath = "/home/gv/Documents/Projects/DailyCash/ddt";
 		String jsonFile = dcspPath + "/ddt.js";
+		String propFile = dcspPath + "/ddt.properties";
 		
 		DdtGenerator ddtGenerator = null;
 	
 		try {
+			Properties properties = new Properties();
+			properties.load(new FileInputStream(propFile));
 			String json = FileUtils.readFileToString(new File(jsonFile));
 			if(json != null && json.length() > 0) {
-				ddtGenerator = new DdtGenerator(json);
+				ddtGenerator = new DdtGenerator(json, properties);
 				ddtGenerator.convertToPDF();
 			} else {
 				throw new IOException("Json is null or empty");
@@ -410,10 +424,11 @@ public class DdtGenerator {
 	    return pagina;
 	}
 	
-	public void convertToPDF() throws FileNotFoundException, DocumentException {
-		String outputFileName = properties.getProperty("output.path") + "/" + properties.getProperty("output.filename");
+	public ByteArrayOutputStream convertToPDF() throws FileNotFoundException, DocumentException {
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	    Document document = new Document();
-	    PdfWriter.getInstance(document, new FileOutputStream(outputFileName));
+	    PdfWriter.getInstance(document, baos);
 	    document.open();
 	    
 	    PdfPTable pagina = null;
@@ -425,13 +440,15 @@ public class DdtGenerator {
 	    	}
 	    }
 	    document.close();
+	    
+	    return baos;
 	}
 	
 	private void creaHeader(PdfPTable tabella) {
 	    
 		Font fontLabel = new Font(FontFamily.HELVETICA, 8, Font.BOLD);
 
-	    String codiceText = properties.getProperty("label.codice", "codice");
+	    String codiceText = properties.getProperty("DDT_LABEL_CODICE", "codice");
 	    PdfPCell codice = new PdfPCell();
 	    Paragraph codiceParagrafo = new Paragraph(codiceText, fontLabel);
 	    codiceParagrafo.setAlignment(Element.ALIGN_CENTER);
@@ -440,7 +457,7 @@ public class DdtGenerator {
 	    codice.setUseAscender(true);
 	    codice.setVerticalAlignment(Element.ALIGN_MIDDLE);
 	    
-	    String descrizioneText = properties.getProperty("label.descrizione", "descrizione");
+	    String descrizioneText = properties.getProperty("DDT_LABEL_DESCRIZIONE", "descrizione");
 	    PdfPCell descrizione = new PdfPCell();
 	    Paragraph descrizioneParagrafo = new Paragraph(descrizioneText, fontLabel);
 	    descrizioneParagrafo.setAlignment(Element.ALIGN_CENTER);
@@ -449,7 +466,7 @@ public class DdtGenerator {
 	    descrizione.setUseAscender(true);
 	    descrizione.setVerticalAlignment(Element.ALIGN_MIDDLE);
 	    
-	    String umText = properties.getProperty("label.um", "um");;
+	    String umText = properties.getProperty("DDT_LABEL_UM", "um");;
 	    PdfPCell um = new PdfPCell();
 	    Paragraph umParagrafo = new Paragraph(umText, fontLabel);
 	    umParagrafo.setAlignment(Element.ALIGN_CENTER);
@@ -458,7 +475,7 @@ public class DdtGenerator {
 	    um.setUseAscender(true);
 	    um.setVerticalAlignment(Element.ALIGN_MIDDLE);
     
-	    String quantitaText = properties.getProperty("label.quantita", "quantita");
+	    String quantitaText = properties.getProperty("DDT_LABEL_QUANTITA", "quantita");
 	    PdfPCell quantita = new PdfPCell();
 	    Paragraph quantitaParagrafo = new Paragraph(quantitaText, fontLabel);
 	    quantitaParagrafo.setAlignment(Element.ALIGN_CENTER);
@@ -570,31 +587,31 @@ public class DdtGenerator {
 	    tipoDocumento.setPadding(0);
 	    tipoDocumento.setNoWrap(true);
 	    tipoDocumento.setVerticalAlignment(Element.ALIGN_TOP);
-	    tipoDocumento.addElement(creaCampo(properties.getProperty("label.tipodoc", "Tipo Documento"), this.documentoDiTrasporto.getTipoDocumento()));
+	    tipoDocumento.addElement(creaCampo(properties.getProperty("DDT_LABEL_TIPODOC", "Tipo Documento"), this.documentoDiTrasporto.getTipoDocumento()));
 
 	    PdfPCell dataDocumento = new PdfPCell();
 	    dataDocumento.setPadding(0);
 	    tipoDocumento.setNoWrap(true);
 	    dataDocumento.setVerticalAlignment(Element.ALIGN_TOP);
-	    dataDocumento.addElement(creaCampo(properties.getProperty("label.datadoc", "Data Documento"), this.documentoDiTrasporto.getDataDocumento()));
+	    dataDocumento.addElement(creaCampo(properties.getProperty("DDT_LABEL_DATADOC", "Data Documento"), this.documentoDiTrasporto.getDataDocumento()));
 
 	    PdfPCell numeroDocumento = new PdfPCell();
 	    numeroDocumento.setPadding(0);
 	    tipoDocumento.setNoWrap(true);
 	    numeroDocumento.setVerticalAlignment(Element.ALIGN_TOP);
-	    numeroDocumento.addElement(creaCampo(properties.getProperty("label.numdoc", "N.ro Documento"), this.documentoDiTrasporto.getNumeroDocumento()));
+	    numeroDocumento.addElement(creaCampo(properties.getProperty("DDT_LABEL_NUMDOC", "N.ro Documento"), this.documentoDiTrasporto.getNumeroDocumento()));
 
 	    PdfPCell pagina = new PdfPCell();
 	    pagina.setPadding(0);
 	    tipoDocumento.setNoWrap(true);
 	    pagina.setVerticalAlignment(Element.ALIGN_TOP);
-	    pagina.addElement(creaCampo(properties.getProperty("label.pagina", "Pagina"), (pag + 1) + " / " + pagg));
+	    pagina.addElement(creaCampo(properties.getProperty("DDT_LABEL_PAGINA", "Pagina"), (pag + 1) + " / " + pagg));
 
 	    PdfPCell causaleTrasporto = new PdfPCell();
 	    causaleTrasporto.setPadding(0);
 	    tipoDocumento.setNoWrap(true);
 	    causaleTrasporto.setVerticalAlignment(Element.ALIGN_TOP);
-	    causaleTrasporto.addElement(creaCampo(properties.getProperty("label.causale", "Causale"), this.documentoDiTrasporto.getCausaleTrasporto()));
+	    causaleTrasporto.addElement(creaCampo(properties.getProperty("DDT_LABEL_CAUSALE", "Causale"), this.documentoDiTrasporto.getCausaleTrasporto()));
 	    
 	    table.addCell(tipoDocumento);
 	    table.addCell(dataDocumento);
@@ -615,17 +632,17 @@ public class DdtGenerator {
 	    PdfPCell firmamittente = new PdfPCell();
 	    firmamittente.setPadding(0);
 	    firmamittente.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmamittente.addElement(creaCampo(properties.getProperty("label.firmamittente", "Firma Mittente"), " "));
+	    firmamittente.addElement(creaCampo(properties.getProperty("DDT_LABEL_FIRMAMITTENTE", "Firma Mittente"), " "));
 
 	    PdfPCell firmadestinatario = new PdfPCell();
 	    firmadestinatario.setPadding(0);
 	    firmadestinatario.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmadestinatario.addElement(creaCampo(properties.getProperty("label.firmadestinatario", "Firma Destinatario"), " "));
+	    firmadestinatario.addElement(creaCampo(properties.getProperty("DDT_LABEL_FIRMADESTINATARIO", "Firma Destinatario"), " "));
 
 	    PdfPCell firmavettore = new PdfPCell();
 	    firmavettore.setPadding(0);
 	    firmavettore.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmavettore.addElement(creaCampo(properties.getProperty("label.firmavettore", "Firma Vettore"), " "));
+	    firmavettore.addElement(creaCampo(properties.getProperty("DDT_LABEL_FIRMAVETTORE", "Firma Vettore"), " "));
 
 	    
 	    table.addCell(firmamittente);
@@ -639,7 +656,7 @@ public class DdtGenerator {
 	private PdfPTable creaSezioneVettore() {
 
 		float[] pointColumnWidths = {1F};
-		String vettoreLabelText = properties.getProperty("label.vettore", "Vettore");
+		String vettoreLabelText = properties.getProperty("DDT_LABEL_VETTORE", "Vettore");
 		
 		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
 	    Paragraph paragrafoLabel = new Paragraph(vettoreLabelText, fontLabel);
@@ -678,57 +695,10 @@ public class DdtGenerator {
 		return tabellaVettore;
 	}
 	
-	private PdfPTable creaSezioneFirme_old() {
-
-		float[] pointColumnWidths = {1F};
-		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
-
-		String firmaMittenteLabelText = properties.getProperty("label.firmamittente", "Firma Mittente");
-		String firmaDestinatarioLabelText =  properties.getProperty("label.firmadestinatario", "Firma Destinatario");
-		String firmaVettoreLabelText =  properties.getProperty("label.firmavettore", "Firma Vettore");
-		
-	    Paragraph paragrafoFirmaMittenteLabel = new Paragraph(firmaMittenteLabelText, fontLabel);
-	    paragrafoFirmaMittenteLabel.setLeading(0, 1);
-
-	    Paragraph paragrafoFirmaDestinatarioLabel = new Paragraph(firmaDestinatarioLabelText, fontLabel);
-	    paragrafoFirmaDestinatarioLabel.setLeading(0, 1);
-
-	    Paragraph paragrafoFirmaVettoreLabel = new Paragraph(firmaVettoreLabelText, fontLabel);
-	    paragrafoFirmaVettoreLabel.setLeading(0, 1);
-
-		PdfPTable tabella = new PdfPTable(pointColumnWidths);
-	    tabella.setWidthPercentage(100);
-	    
-	    PdfPCell firmaMittenteLabel = new PdfPCell();
-	    firmaMittenteLabel.setPadding(TAB_PADDING);
-	    firmaMittenteLabel.setFixedHeight(20);
-	    firmaMittenteLabel.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmaMittenteLabel.addElement(paragrafoFirmaMittenteLabel);
-	    
-	    PdfPCell firmaDestinatarioLabel = new PdfPCell();
-	    firmaDestinatarioLabel.setPadding(TAB_PADDING);
-	    firmaDestinatarioLabel.setFixedHeight(20);
-	    firmaDestinatarioLabel.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmaDestinatarioLabel.addElement(paragrafoFirmaDestinatarioLabel);
-	    
-	    PdfPCell firmaVettoreLabel = new PdfPCell();
-	    firmaVettoreLabel.setPadding(TAB_PADDING);
-	    firmaVettoreLabel.setFixedHeight(20);
-	    firmaVettoreLabel.setVerticalAlignment(Element.ALIGN_TOP);
-	    firmaVettoreLabel.addElement(paragrafoFirmaVettoreLabel);
-	    
-
-	    tabella.addCell(firmaMittenteLabel);
-	    tabella.addCell(firmaDestinatarioLabel);
-	    tabella.addCell(firmaVettoreLabel);
-
-		return tabella;
-	}
-	
 	private PdfPTable creaSezioneAnnotazioni() {
 
 		float[] pointColumnWidths = {1F};
-		String annotazioniLabelText = properties.getProperty("label.annotazioni", "Annotazioni");
+		String annotazioniLabelText = properties.getProperty("DDT_LABEL_ANNOTAZIONI", "Annotazioni");
 		
 		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
 	    Paragraph paragrafoLabel = new Paragraph(annotazioniLabelText, fontLabel);
@@ -798,7 +768,7 @@ public class DdtGenerator {
 	private PdfPTable creaMittente() {
 
 		float[] pointColumnWidths = {1F};
-		String mittenteLabelText = properties.getProperty("label.mittente", "Mittente:");
+		String mittenteLabelText = properties.getProperty("DDT_LABEL_MITTENTE", "Mittente:");
 		String mittenteDenominazioneText = documentoDiTrasporto.getMittente().getDenominazione() + "\n";
 		String mittenteIndirizzoText = documentoDiTrasporto.getMittente().getIndirizzoAsString();
 		String mittentePIText = documentoDiTrasporto.getMittente().getPartitaIvaAsString();
@@ -859,7 +829,7 @@ public class DdtGenerator {
 		
 		float[] pointColumnWidths = {1F};
 
-		String destinatarioLabelText = properties.getProperty("label.destinatario", "Destinatario");;
+		String destinatarioLabelText = properties.getProperty("DDT_LABEL_DESTINATARIO", "Destinatario");;
 		String destinatarioDenominazioneText = documentoDiTrasporto.getDestinatario().getDenominazione();
 		String destinatarioIndirizzoText = documentoDiTrasporto.getDestinatario().getIndirizzoAsString();
 		String destinatarioPICFText = (documentoDiTrasporto.getDestinatario().getPartitaIva() != null &&
@@ -910,7 +880,7 @@ public class DdtGenerator {
 	
 	private PdfPTable creaLuogoDestinazione() {
 		
-		String luogoDestinazioneLabelText = properties.getProperty("label.luogodestinazione", "Luogo di destinazione");
+		String luogoDestinazioneLabelText = properties.getProperty("DDT_LABEL_LUOGODESTINAZIONE", "Luogo di destinazione");
 		String luogoDestinazioneInfoText = "";
 		
 		if(documentoDiTrasporto.getLuogoDestinazione() != null) {
@@ -1029,3 +999,4 @@ public class DdtGenerator {
 		return (a<b) ? a : b;
 	}
 }
+
