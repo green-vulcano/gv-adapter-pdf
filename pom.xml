@@ -39,6 +39,21 @@
 			</snapshots>
 		</repository>
 	</repositories>
+	
+	
+	<distributionManagement>
+	    <repository>
+	      <id>nexus-cloud</id>
+	      <name>Cloud Nexus instance - RELEASES </name>
+	      <url>http://mvn.greenvulcano.com/repositories/releases</url>
+	    </repository>
+	    <snapshotRepository>
+	      <id>nexus-cloud</id>
+	      <name>Cloud Nexus instance - SNAPSHOTS</name>
+	      <url>http://mvn.greenvulcano.com/repositories/snapshots</url>
+	    </snapshotRepository>
+	</distributionManagement>
+	
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
