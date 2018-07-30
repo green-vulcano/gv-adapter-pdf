@@ -363,11 +363,11 @@ public class DdtGenerator {
 	
 	private PdfPTable creaPagina(int pag) {
 		PdfPTable pagina = new PdfPTable(1);
+		pagina.setExtendLastRow(true);
 		
 		if(pag == 0) {
 		    PdfPCell sezioneMittenteDestinatario = new PdfPCell();
 		    sezioneMittenteDestinatario.setPadding(0);
-//		    sezioneMittenteDestinatario.setMinimumHeight(50);
 		    sezioneMittenteDestinatario.setVerticalAlignment(Element.ALIGN_TOP);
 		    sezioneMittenteDestinatario.setBorder(Rectangle.NO_BORDER);
 		    sezioneMittenteDestinatario.addElement(creaSezioneMittenteDestinatario());
@@ -377,7 +377,6 @@ public class DdtGenerator {
 
 	    PdfPCell intestazionePagina = new PdfPCell();
 	    intestazionePagina.setPadding(0);
-//	    intestazionePagina.setMinimumHeight(50);
 	    intestazionePagina.setVerticalAlignment(Element.ALIGN_TOP);
 	    intestazionePagina.setBorder(Rectangle.NO_BORDER);
 	    intestazionePagina.addElement(creaIntestazionePagina(pag));
@@ -386,7 +385,6 @@ public class DdtGenerator {
 
 	    PdfPCell sezioneArticoli = new PdfPCell();
 	    sezioneArticoli.setPadding(0);
-//	    sezioneArticoli.setMinimumHeight(50);
 	    sezioneArticoli.setVerticalAlignment(Element.ALIGN_TOP);
 	    sezioneArticoli.setBorder(Rectangle.NO_BORDER);
 	    sezioneArticoli.addElement(creaSezioneArticoli(pag));
@@ -394,31 +392,13 @@ public class DdtGenerator {
 	    pagina.addCell(creaSeparatore());
 	    
 	    if(pag == pagg - 1) {
-		    PdfPCell sezioneVettore = new PdfPCell();
-		    sezioneVettore.setPadding(0);
-//		    sezioneVettore.setMinimumHeight(30);
-		    sezioneVettore.setVerticalAlignment(Element.ALIGN_TOP);
-		    sezioneVettore.setBorder(Rectangle.NO_BORDER);
-		    sezioneVettore.addElement(creaSezioneVettore());
-		    pagina.addCell(sezioneVettore);
-		    pagina.addCell(creaSeparatore());
-		    
-		    PdfPCell sezioneAnnotazioni = new PdfPCell();
-		    sezioneAnnotazioni.setPadding(0);
-//		    sezioneAnnotazioni.setMinimumHeight(30);
-		    sezioneAnnotazioni.setVerticalAlignment(Element.ALIGN_TOP);
-		    sezioneAnnotazioni.setBorder(Rectangle.NO_BORDER);
-		    sezioneAnnotazioni.addElement(creaSezioneAnnotazioni());
-		    pagina.addCell(sezioneAnnotazioni);
-		    pagina.addCell(creaSeparatore());
-		    
-		    PdfPCell sezioneFirme = new PdfPCell();
-		    sezioneFirme.setPadding(0);
-//		    sezioneFirme.setMinimumHeight(50);
-		    sezioneFirme.setVerticalAlignment(Element.ALIGN_TOP);
-		    sezioneFirme.setBorder(Rectangle.NO_BORDER);
-		    sezioneFirme.addElement(creaSezioneFirme());
-		    pagina.addCell(sezioneFirme);
+		    PdfPCell sezioneFinale = new PdfPCell();
+		    sezioneFinale.setPadding(0);
+		    sezioneFinale.setVerticalAlignment(Element.ALIGN_BOTTOM);
+		    sezioneFinale.setBorder(Rectangle.NO_BORDER);
+		    sezioneFinale.addElement(creaSezioneConclusiva());
+		    pagina.addCell(sezioneFinale);
+
 	    }
 	    
 	    return pagina;
@@ -737,6 +717,38 @@ public class DdtGenerator {
 		return tabellaAnnotazioni;
 	}
 	
+	private PdfPTable creaSezioneConclusiva() {
+		PdfPTable footer = null;
+		float[] pointColumnWidths = {1F};
+		footer = new PdfPTable(pointColumnWidths);
+		footer.setWidthPercentage(100);
+		
+    	PdfPCell sezioneVettore = new PdfPCell();
+	    sezioneVettore.setPadding(0);
+	    sezioneVettore.setVerticalAlignment(Element.ALIGN_TOP);
+	    sezioneVettore.setBorder(Rectangle.NO_BORDER);
+	    sezioneVettore.addElement(creaSezioneVettore());
+	    footer.addCell(sezioneVettore);
+	    footer.addCell(creaSeparatore());
+	    
+	    PdfPCell sezioneAnnotazioni = new PdfPCell();
+	    sezioneAnnotazioni.setPadding(0);
+	    sezioneAnnotazioni.setVerticalAlignment(Element.ALIGN_TOP);
+	    sezioneAnnotazioni.setBorder(Rectangle.NO_BORDER);
+	    sezioneAnnotazioni.addElement(creaSezioneAnnotazioni());
+	    footer.addCell(sezioneAnnotazioni);
+	    footer.addCell(creaSeparatore());
+	    
+	    PdfPCell sezioneFirme = new PdfPCell();
+	    sezioneFirme.setPadding(0);
+	    sezioneFirme.setVerticalAlignment(Element.ALIGN_TOP);
+	    sezioneFirme.setBorder(Rectangle.NO_BORDER);
+	    sezioneFirme.addElement(creaSezioneFirme());
+	    footer.addCell(sezioneFirme);
+
+		return footer;
+	}
+
 
 	private PdfPTable creaSezioneMittenteDestinatario() {
 		PdfPTable table = null;
