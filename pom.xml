@@ -120,7 +120,7 @@
 			<artifactId>itextpdf</artifactId>
 			<version>${itext-version}</version>
 		</dependency>
-				<dependency>
+		<dependency>
 			<groupId>com.itextpdf.tool</groupId>
 			<artifactId>xmlworker</artifactId>
 			<version>${itext-version}</version>

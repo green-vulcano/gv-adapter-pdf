@@ -29,13 +29,14 @@ public class Activator implements BundleActivator {
 	@Override
 	public void start(BundleContext context) throws Exception {
 		OperationFactory.registerSupplier("ddt-call", DDTCallOperation::new);
+		OperationFactory.registerSupplier("html2pdf-call", HTML2PDFCallOperation::new);
 
 	}
 
 	@Override
 	public void stop(BundleContext context) throws Exception {
 		OperationFactory.unregisterSupplier("ddt-call");
-
+		OperationFactory.unregisterSupplier("html2pdf-call");
 	}
 
 }
