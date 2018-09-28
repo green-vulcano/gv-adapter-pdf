@@ -19,23 +19,14 @@
  *******************************************************************************/
 package it.greenvulcano.esb.virtual.pdf;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
+import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.PrintStream;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.w3c.dom.Node;
-
-import com.itextpdf.text.Document;
-import com.itextpdf.text.pdf.PdfWriter;
-import com.itextpdf.tool.xml.XMLWorkerHelper;
+import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import it.greenvulcano.configuration.XMLConfig;
 import it.greenvulcano.gvesb.buffer.GVBuffer;
@@ -45,6 +36,7 @@ import it.greenvulcano.gvesb.virtual.ConnectionException;
 import it.greenvulcano.gvesb.virtual.InitializationException;
 import it.greenvulcano.gvesb.virtual.InvalidDataException;
 import it.greenvulcano.gvesb.virtual.OperationKey;
+import it.greenvulcano.util.metadata.PropertiesHandler;
 
 /**
  * 
@@ -53,7 +45,7 @@ import it.greenvulcano.gvesb.virtual.OperationKey;
  */
 public class HTML2PDFCallOperation implements CallOperation {
 
-	private static final Logger logger = org.slf4j.LoggerFactory.getLogger(DDTCallOperation.class);
+	private static final Logger logger = org.slf4j.LoggerFactory.getLogger(HTML2PDFCallOperation.class);
 	private OperationKey key = null;
 
 	protected String name;
@@ -79,55 +71,68 @@ public class HTML2PDFCallOperation implements CallOperation {
 	public GVBuffer perform(GVBuffer gvBuffer) throws ConnectionException, CallException, InvalidDataException {
 
 		try {
-			byte[] htmlData = new byte[] {};
-			if (gvBuffer.getObject() != null) {
-
-				if (gvBuffer.getObject() instanceof byte[]) {
-					htmlData = (byte[]) gvBuffer.getObject();
-				} else if (gvBuffer.getObject() instanceof String) {
-
-					String charset = Optional.ofNullable(gvBuffer.getProperty("OBJECT_ENCODING")).orElse("UTF-8");
-					htmlData = gvBuffer.getObject().toString().getBytes(charset);
-
-				} else {
-
-					try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-
-						ObjectOutput objectOutput = new ObjectOutputStream(outputStream);
-						objectOutput.writeObject(gvBuffer.getObject());
-						objectOutput.flush();
-
-						htmlData = outputStream.toByteArray();
+			
+			ITextRenderer renderer = new ITextRenderer();
+						
+      	  	if (srcPath==null) {
+      	  		
+      	  		logger.debug("Reading input XHTML from GVBuffer ...");
+      	  		
+	      	  	byte[] htmlData = new byte[] {};
+				if (gvBuffer.getObject() != null) {
+	
+					if (gvBuffer.getObject() instanceof byte[]) {
+						htmlData = (byte[]) gvBuffer.getObject();
+					
+					} else if (gvBuffer.getObject() instanceof String) {
+	
+						String charset = Optional.ofNullable(gvBuffer.getProperty("OBJECT_ENCODING")).orElse("UTF-8");
+						htmlData = gvBuffer.getObject().toString().getBytes(charset);
+	
+					} else {
+	
+						throw new IllegalArgumentException("Invalid input data: " + gvBuffer.getObject());
 					}
 				}
-			}
-      	  	
-			InputStream input;
-      	  	if (srcPath==null) {
-				input = new ByteArrayInputStream(htmlData);
+				
+				renderer.setDocument(htmlData);
 			} else {
-				input = new FileInputStream(srcPath);
+				
+				String realSrcPath = PropertiesHandler.expand(srcPath, gvBuffer);				
+				logger.debug("Reading input XHTML from file {}", realSrcPath);
+				
+				if (realSrcPath.startsWith("http")) {
+					renderer.setDocument(realSrcPath);
+				} else {
+					renderer.setDocument(new File(realSrcPath));
+				}
+				
 			}
 	        
-	        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	        System.setOut(new PrintStream(baos));
-
-	        FileOutputStream fos = new FileOutputStream(FileDescriptor.out);
-
-	        Document document = new Document();
-	        PdfWriter writer = PdfWriter.getInstance(document, fos);
-	        document.open();
-	        XMLWorkerHelper.getInstance().parseXHtml(writer, document, input);
-	                //new ByteArrayInputStream(
-	                //        StringUtil.getText(url).getBytes()).);
-	        document.close();
-	        
-	        logger.debug("PDF Created!");
-	        
-	        //String pdfString = baos.toString();
-	        //byte[] pdfArray = baos.toByteArray();
-	 
-	        gvBuffer.setObject(baos.toByteArray());
+	      
+      	    renderer.layout();      	    
+      	    
+      	    if (trgPath==null) {
+      	    	
+      	    	logger.debug("Writing output PDF into GVBuffer...");
+      	    	
+      	    	ByteArrayOutputStream output = new ByteArrayOutputStream();
+      	    	renderer.createPDF(output);
+      	          	    	
+      	    	gvBuffer.setObject(output.toByteArray());
+      	    	
+      	    	output.close();
+      	    } else {
+      	    	
+      	    	String realTrgPath = PropertiesHandler.expand(trgPath, gvBuffer);
+      	    	
+      	    	logger.debug("Writing output PDF into file {}", realTrgPath);
+      	    	
+      	    	FileOutputStream fos = new FileOutputStream(realTrgPath);
+    		    renderer.createPDF(fos);
+    		    fos.close();
+      	    }
+      	    		    
 	        
 		} catch (Exception exc) {
 			throw new CallException("GV_CALL_SERVICE_ERROR",

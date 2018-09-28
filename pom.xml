@@ -106,32 +106,25 @@
 			<version>1.6.1</version>
 			<scope>provided</scope>
 		</dependency>
-		
-		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-io -->
-		<dependency>
-		    <groupId>org.apache.commons</groupId>
-		    <artifactId>commons-io</artifactId>
-		    <version>${commons-io-version}</version>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/com.itextpdf/itextpdf -->
-		<dependency>
-			<groupId>com.itextpdf</groupId>
-			<artifactId>itextpdf</artifactId>
-			<version>${itext-version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.itextpdf.tool</groupId>
-			<artifactId>xmlworker</artifactId>
-			<version>${itext-version}</version>
-		</dependency>
-
 		<dependency>
 		    <groupId>org.json</groupId>
 		    <artifactId>json</artifactId>
 		    <version>20160810</version>
+		    <scope>provided</scope>
+		</dependency>				
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-io</artifactId>
+		    <version>${commons-io-version}</version>
+		    <scope>provided</scope>
 		</dependency>
-		
+
+		<dependency>				
+		  <groupId>org.xhtmlrenderer</groupId>
+  		  <artifactId>flying-saucer-pdf-itext5</artifactId>
+  		  <version>9.1.15</version>
+  		  <scope>compile</scope>
+		</dependency>
 		
 	</dependencies>
 
@@ -175,8 +168,29 @@
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
 						<Bundle-Version>${project.version}</Bundle-Version>
 						<Export-Package />
-						<Import-Package>*</Import-Package>
+						<Import-Package>
+						                javax.xml.transform,
+						                javax.xml.transform.sax,
+						                javax.xml.transform.dom,
+						                javax.xml.bind,        
+						                it.greenvulcano.configuration;version="[4.0,5)",
+						                it.greenvulcano.gvesb.buffer;version="[4.0,5)",
+						                it.greenvulcano.gvesb.virtual;version="[4.0,5)",
+						                it.greenvulcano.util.metadata;version="[4.0,5)",
+						                org.apache.commons.io,
+						                org.json;version="[20160810.0,20160811)",
+						                org.osgi.framework;version="[1.7,2)",
+						                org.slf4j;version="[1.6,2)",
+						                org.w3c.dom,
+						                org.w3c.dom.css,
+						                org.w3c.dom.traversal,
+						                org.xml.sax,
+						                org.xml.sax.helpers,
+						                org.xml.sax.ext
+					    </Import-Package>
 						<Bundle-Activator>it.greenvulcano.esb.virtual.pdf.Activator</Bundle-Activator>
+						<Embed-Dependency>*;scope=compile;type=jar</Embed-Dependency>
+						<Embed-Transitive>true</Embed-Transitive>
 					</instructions>
 				</configuration>
 			</plugin>
