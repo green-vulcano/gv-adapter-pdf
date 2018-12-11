@@ -21,11 +21,9 @@ package it.greenvulcano.esb.virtual.pdf;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.net.URL;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.osgi.framework.FrameworkUtil;
 import org.slf4j.Logger;
 import org.w3c.dom.Node;
 
@@ -39,6 +37,7 @@ import it.greenvulcano.gvesb.virtual.ConnectionException;
 import it.greenvulcano.gvesb.virtual.InitializationException;
 import it.greenvulcano.gvesb.virtual.InvalidDataException;
 import it.greenvulcano.gvesb.virtual.OperationKey;
+import it.greenvulcano.util.metadata.PropertiesHandler;
 
 /**
  * 
@@ -51,12 +50,14 @@ public class DDTCallOperation implements CallOperation {
 	private OperationKey key = null;
 
 	protected String name;
+	private String logoPath;
 
 	@Override
 	public void init(Node node) throws InitializationException {
 		logger.debug("Init start");
 		try {
-			name = XMLConfig.get(node, "@name");
+			name = XMLConfig.get(node, "@name");			
+			logoPath = XMLConfig.get(node, "@logo");
 
 		} catch (Exception exc) {
 			throw new InitializationException("GV_INIT_SERVICE_ERROR",
@@ -161,7 +162,9 @@ public class DDTCallOperation implements CallOperation {
 				
 				String json = (String) data;
 				
-				DdtGenerator ddtGenerator = new DdtGenerator(json, properties);
+				String logo = PropertiesHandler.expand(logoPath, gvBuffer);
+				
+				DdtGenerator ddtGenerator = new DdtGenerator(json, properties, logo);
 				ByteArrayOutputStream baos = ddtGenerator.convertToPDF();
 				String outputFilename = null;
 				if((outputFilename = gvBuffer.getProperty("OUTPUT_FILENAME")) != null) {

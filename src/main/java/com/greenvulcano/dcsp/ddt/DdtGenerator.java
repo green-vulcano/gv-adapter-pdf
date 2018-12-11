@@ -28,6 +28,7 @@ import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Vector;
 
@@ -35,7 +36,7 @@ import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.osgi.framework.FrameworkUtil;
-
+import org.slf4j.Logger;
 import com.greenvulcano.dcsp.ddt.beans.Articolo;
 import com.greenvulcano.dcsp.ddt.beans.DDT;
 import com.greenvulcano.dcsp.ddt.beans.Destinatario;
@@ -58,6 +59,8 @@ import com.itextpdf.text.pdf.PdfWriter;
 
 public class DdtGenerator {
 	
+	private static final Logger logger = org.slf4j.LoggerFactory.getLogger(DdtGenerator.class);
+	
 	public static final float TAB_PADDING = 2.5F;
 	
 	private DDT documentoDiTrasporto;
@@ -65,7 +68,9 @@ public class DdtGenerator {
 	private Integer totaleArticoli;
 	private Integer minPrimaPagina; 
 	private Integer maxPrimaPagina; 
-	private Integer maxPagina; 
+	private Integer maxPagina;
+	
+	private String logoPath;
 
 	private Properties properties;
 	
@@ -81,10 +86,11 @@ public class DdtGenerator {
 		
 	}
 	
-	public DdtGenerator(String json, Properties properties) throws DdtException {
+	public DdtGenerator(String json, Properties properties, String logoPath) throws DdtException {
 
 		this.properties = properties;
-
+		this.logoPath = logoPath;
+		
 		parseDdt(json);
 		
 		totaleArticoli = 0;
@@ -338,12 +344,12 @@ public class DdtGenerator {
 			properties.load(new FileInputStream(propFile));
 			String json = FileUtils.readFileToString(new File(jsonFile));
 			if(json != null && json.length() > 0) {
-				ddtGenerator = new DdtGenerator(json, properties);
+				ddtGenerator = new DdtGenerator(json, properties, null);
 				ddtGenerator.convertToPDF();
 			} else {
 				throw new IOException("Json is null or empty");
 			}
-		} catch (IOException e) {
+		} catch (IOException e) {			
 			e.printStackTrace();
 		} catch (DocumentException e) {
 			e.printStackTrace();
@@ -721,15 +727,14 @@ public class DdtGenerator {
 	}
 
 	private Image creaImage() {
-		URL url = FrameworkUtil.getBundle(this.getClass()).getResource("DC_logo_righsided.png");
-
 		Image img = null;
 		try {
-			img = Image.getInstance(url);
-			img.scalePercent((float)10);
+			logger.debug("Loading logo image from "+logoPath);
+			img = Image.getInstance(logoPath);
+			img.scalePercent(10f);
 			
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Failed to load logo image from"+logoPath, e);
 		}
 
 		return img;
@@ -745,11 +750,13 @@ public class DdtGenerator {
 	    table.getDefaultCell().setVerticalAlignment(Element.ALIGN_TOP);
 	    
 	    
-	    PdfPCell logo = new PdfPCell();
-	    logo.setBorder(Rectangle.NO_BORDER);
-	    logo.setVerticalAlignment(Element.ALIGN_MIDDLE);
-	    logo.addElement(creaImage());
-	    
+	    if (Objects.nonNull(logoPath)) {
+		    PdfPCell logo = new PdfPCell();
+		    logo.setBorder(Rectangle.NO_BORDER);
+		    logo.setVerticalAlignment(Element.ALIGN_MIDDLE);
+		    logo.addElement(creaImage());
+		    table.addCell(logo);
+	    }
 	    PdfPCell mittente = new PdfPCell();
 	    mittente.addElement(creaMittente());
 	    
@@ -759,7 +766,7 @@ public class DdtGenerator {
 	    PdfPCell destinazione = new PdfPCell();
 	    destinazione.addElement(creaDestinazione());
 	    
-	    table.addCell(logo);
+	   
 	    table.addCell(creaSeparatore());
 	    table.addCell(destinazione);
 	    table.addCell(creaSeparatore());
@@ -772,7 +779,7 @@ public class DdtGenerator {
 		return table;
 	}
 	
-	private PdfPTable creaSezioneMittenteDestinatario_1() {
+	protected PdfPTable creaSezioneMittenteDestinatario_1() {
 		PdfPTable table = null;
 		float[] pointColumnWidths = {1F, 1F};
 		table = new PdfPTable(pointColumnWidths);
@@ -799,7 +806,7 @@ public class DdtGenerator {
 		return table;
 	}
 	
-	private PdfPTable creaMit() {
+	protected PdfPTable creaMit() {
 
 		float[] pointColumnWidths = {1F};
 		String mittenteLabelText = properties.getProperty("DDT_LABEL_MITTENTE", "Mittente");

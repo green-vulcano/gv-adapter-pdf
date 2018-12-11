@@ -19,8 +19,6 @@
  *******************************************************************************/
 package it.greenvulcano.esb.virtual.pdf;
 
-import java.net.URL;
-
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
