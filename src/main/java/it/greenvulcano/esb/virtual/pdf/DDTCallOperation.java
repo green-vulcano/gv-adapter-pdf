@@ -21,9 +21,11 @@ package it.greenvulcano.esb.virtual.pdf;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.net.URL;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.osgi.framework.FrameworkUtil;
 import org.slf4j.Logger;
 import org.w3c.dom.Node;
 

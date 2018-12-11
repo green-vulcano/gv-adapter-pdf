@@ -83,7 +83,7 @@ public class Indirizzo {
 		
 		ret.append(indirizzo);
 		if(numeroCivico != null && numeroCivico.length() > 0) {
-			ret.append(" " + numeroCivico);
+			ret.append(", " + numeroCivico);
 		}
 		
 		if(cap != null && cap.length() > 0) {

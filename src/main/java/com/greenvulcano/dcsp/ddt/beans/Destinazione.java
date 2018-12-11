@@ -19,45 +19,23 @@
  *******************************************************************************/
 package com.greenvulcano.dcsp.ddt.beans;
 
-public class Mittente {
+public class Destinazione {
 	private String denominazione;
-	private String partitaIva;
-	private Indirizzo indirizzo;
-	private String codiceFiscale;
-	
-	public String getCodiceFiscale() {
-		return codiceFiscale;
-	}
+	private Indirizzo recapito;
 	public String getDenominazione() {
 		return denominazione;
 	}
 	public void setDenominazione(String denominazione) {
 		this.denominazione = denominazione;
 	}
-	public String getPartitaIva() {
-		return partitaIva;
+	public Indirizzo getRecapito() {
+		return recapito;
 	}
-	public String getPartitaIvaAsString() {
-		return "P. Iva: " + partitaIva;
+	public void setRecapito(Indirizzo indirizzo) {
+		this.recapito = indirizzo;
 	}
-	public void setPartitaIva(String partitaIva) {
-		this.partitaIva = partitaIva;
-	}
-	public Indirizzo getIndirizzo() {
-		return indirizzo;
-	}
-	public String getIndirizzoAsString() {
-		return indirizzo.getIndirizzoAsString();
-	}
-	
-	public void setIndirizzo(Indirizzo indirizzo) {
-		this.indirizzo = indirizzo;
-	}
-	public String getCodiceFiscaleAsString() {
-		return "Cod. Fiscale: " + codiceFiscale;
-	}
-	public void setCodiceFiscale(String codiceFiscale) {
-		this.codiceFiscale = codiceFiscale;
+	public String getRecapitoAsString() {
+		return recapito.getIndirizzoAsString();
 	}
 
 }

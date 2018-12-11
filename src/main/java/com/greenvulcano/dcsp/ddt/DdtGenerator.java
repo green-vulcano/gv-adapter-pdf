@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -33,14 +34,14 @@ import java.util.Vector;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.osgi.framework.FrameworkUtil;
 
 import com.greenvulcano.dcsp.ddt.beans.Articolo;
 import com.greenvulcano.dcsp.ddt.beans.DDT;
 import com.greenvulcano.dcsp.ddt.beans.Destinatario;
+import com.greenvulcano.dcsp.ddt.beans.Destinazione;
 import com.greenvulcano.dcsp.ddt.beans.Indirizzo;
-import com.greenvulcano.dcsp.ddt.beans.LuogoDestinazione;
 import com.greenvulcano.dcsp.ddt.beans.Mittente;
-import com.greenvulcano.dcsp.ddt.beans.Recapito;
 import com.greenvulcano.dcsp.ddt.exceptions.DdtException;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
@@ -48,6 +49,7 @@ import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
 import com.itextpdf.text.Font;
 import com.itextpdf.text.Font.FontFamily;
+import com.itextpdf.text.Image;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -122,12 +124,14 @@ public class DdtGenerator {
 			String causaleTrasporto = jDdt.has("causaleTrasporto") ? jDdt.getString("causaleTrasporto") : "conto vendita";
 			String vettore = jDdt.has("vettore") ? jDdt.getString("vettore") : "";
 			String annotazioni = jDdt.has("annotazioni") ? jDdt.getString("annotazioni") : "";
+			String colli = jDdt.has("colli") ? jDdt.getString("colli") : "";
 
 			ddt.setTipoDocumento(tipoDocumento);
 			ddt.setDataDocumento(dataDocumento);
 			ddt.setCausaleTrasporto(causaleTrasporto);
 			ddt.setVettore(vettore);
 			ddt.setAnnotazioni(annotazioni);
+			ddt.setColli(colli);
 			
 			if(jDdt.has("numeroDocumento")) {
 				ddt.setNumeroDocumento(jDdt.getString("numeroDocumento"));
@@ -150,11 +154,11 @@ public class DdtGenerator {
 				throw new DdtException("Il destinatario e' obbligatorio");
 			}
 			
-			JSONObject jLuogoDestinazione = null;
-			if(jDdt.has("luogoDestinazione")) {
-				jLuogoDestinazione = jDdt.getJSONObject("luogoDestinazione");
+			JSONObject jDestinazione = null;
+			if(jDdt.has("destinazione")) {
+				jDestinazione = jDdt.getJSONObject("destinazione");
 			}
-			ddt.setLuogoDestinazione(loadLuogoDestinazioneFromJson(jLuogoDestinazione));
+			ddt.setDestinazione(loadDestinazioneFromJson(jDestinazione));
 			
 			JSONObject jArticolo = null;
 			Vector<Articolo>articoli = null;
@@ -198,25 +202,6 @@ public class DdtGenerator {
 			articolo.setUm(um);
 		}
 		return articolo;
-	}
-
-	private LuogoDestinazione loadLuogoDestinazioneFromJson(JSONObject jLuogoDestinazione) throws DdtException {
-		LuogoDestinazione luogoDestinazione = null;
-		if(jLuogoDestinazione != null) {
-			luogoDestinazione = new LuogoDestinazione();
-
-			if(jLuogoDestinazione.has("recapito")) {
-				JSONObject jRecapito = jLuogoDestinazione.getJSONObject("recapito");
-				luogoDestinazione.setRecapito(loadRecapitoFromJson(jRecapito));
-			} else {
-				throw new DdtException("Il campo recapito del luogo di destinazione e' obbligatorio");
-			}
-			
-			String denominazione = jLuogoDestinazione.has("denominazione") ? jLuogoDestinazione.getString("denominazione") : "";
-			luogoDestinazione.setDenominazione(denominazione);
-		}
-		
-		return luogoDestinazione;
 	}
 
 	private Mittente loadMittenteFromJson(JSONObject jMittente) throws DdtException {
@@ -278,6 +263,28 @@ public class DdtGenerator {
 		return destinatario;
 	}
 
+	private Destinazione loadDestinazioneFromJson(JSONObject jDestinazione) throws DdtException {
+		Destinazione destinazione = null;
+		if(jDestinazione != null) {
+			destinazione = new Destinazione();
+			
+			if(jDestinazione.has("denominazione")) {
+				destinazione.setDenominazione(jDestinazione.getString("denominazione"));
+			} else {
+				throw new DdtException("Il campo demìnominazione della destinazione e' obbligatorio");
+			}
+
+			if(jDestinazione.has("indirizzo")) {
+				JSONObject jIndirizzo = jDestinazione.getJSONObject("indirizzo");
+				destinazione.setRecapito(loadIndirizzoFromJson(jIndirizzo));
+			} else {
+				throw new DdtException("Il campo indirizzo della destinazione e' obbligatorio");
+			}
+		}
+		
+		return destinazione;
+	}
+
 	private Indirizzo loadIndirizzoFromJson(JSONObject jIndirizzo) throws DdtException {
 		Indirizzo indirizzo = null;
 		if(jIndirizzo != null) {
@@ -307,7 +314,7 @@ public class DdtGenerator {
 				throw new DdtException("La provincia e' obbligatoria");
 			}
 			
-			String numeroCivico = jIndirizzo.has("numeroCivico") ? jIndirizzo.getString("numeroCivico") : "";
+			String numeroCivico = jIndirizzo.has("numero_civico") ? jIndirizzo.getString("numero_civico") : "";
 			String telefono = jIndirizzo.has("telefono") ? jIndirizzo.getString("telefono") : "";
 			String fax = jIndirizzo.has("fax") ? jIndirizzo.getString("fax") : "";
 			String email = jIndirizzo.has("email") ? jIndirizzo.getString("email") : "";
@@ -318,41 +325,6 @@ public class DdtGenerator {
 		}
 		return indirizzo;
 	}
-
-	private Recapito loadRecapitoFromJson(JSONObject jRecapito) throws DdtException {
-		Recapito recapito = null;
-		if(jRecapito != null) {
-			recapito = new Recapito();
-			
-			if(jRecapito.has("indirizzo")) {
-				recapito.setIndirizzo(jRecapito.getString("indirizzo"));
-			} else {
-				throw new DdtException("Il campo indirizzo del recapito e' obbligatorio");
-			}
-
-			if(jRecapito.has("cap")) {
-				recapito.setCap(jRecapito.getString("cap"));
-			} else {
-				throw new DdtException("Il campo cap del recapito e' obbligatorio");
-			}
-
-			if(jRecapito.has("citta")) {
-				recapito.setCitta(jRecapito.getString("citta"));
-			} else {
-				throw new DdtException("Il campo citta' del recapito e' obbligatorio");
-			}
-
-			if(jRecapito.has("provincia")) {
-				recapito.setProvincia(jRecapito.getString("provincia"));
-			} else {
-				throw new DdtException("Il campo provincia del recapito e' obbligatorio");
-			}
-			String numeroCivico = jRecapito.has("numeroCivico") ? jRecapito.getString("numeroCivico") : "";
-			recapito.setNumeroCivico(numeroCivico);
-		}
-		return recapito;
-	}
-
 
 	public static void main(String[] args) {
 		String dcspPath = "/home/gv/Documents/Projects/DailyCash/ddt";
@@ -578,7 +550,7 @@ public class DdtGenerator {
 	private PdfPTable creaIntestazionePagina(int pag) {
 		
 		PdfPTable table = null;
-		float[] pointColumnWidths = {21F, 21F, 23F, 15F, 20F};
+		float[] pointColumnWidths = {21F, 21F, 21F, 12F, 25F};
 		table = new PdfPTable(pointColumnWidths);
 	    table.setWidthPercentage(100);
 	    
@@ -651,7 +623,6 @@ public class DdtGenerator {
 	    return table;
 	}
 	
-	
 	private PdfPTable creaSezioneVettore() {
 
 		float[] pointColumnWidths = {1F};
@@ -695,45 +666,26 @@ public class DdtGenerator {
 	}
 	
 	private PdfPTable creaSezioneAnnotazioni() {
-
-		float[] pointColumnWidths = {1F};
-		String annotazioniLabelText = properties.getProperty("DDT_LABEL_ANNOTAZIONI", "Annotazioni");
 		
-		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
-	    Paragraph paragrafoLabel = new Paragraph(annotazioniLabelText, fontLabel);
-	    paragrafoLabel.setLeading(0, 1);
-
-		PdfPTable tabella = new PdfPTable(pointColumnWidths);
-	    tabella.setWidthPercentage(100);
+		PdfPTable table = null;
+		float[] pointColumnWidths = {2F, 1F};
+		table = new PdfPTable(pointColumnWidths);
+	    table.setWidthPercentage(100);
 	    
-	    PdfPCell annotazioniLabel = new PdfPCell();
-	    annotazioniLabel.setPadding(TAB_PADDING);
-	    annotazioniLabel.setFixedHeight(20);
-	    annotazioniLabel.setVerticalAlignment(Element.ALIGN_TOP);
-	    annotazioniLabel.addElement(paragrafoLabel);
-	    annotazioniLabel.setBorder(Rectangle.NO_BORDER);
-	    
-	    PdfPCell annotazioniInfo = new PdfPCell();
-	    annotazioniInfo.setPadding(TAB_PADDING);
-	    annotazioniInfo.setMinimumHeight(10);
-	    annotazioniInfo.setVerticalAlignment(Element.ALIGN_TOP);
-	    annotazioniInfo.setBorder(Rectangle.NO_BORDER);
+	    PdfPCell annotazioni = new PdfPCell();
+	    annotazioni.setPadding(0);
+	    annotazioni.setVerticalAlignment(Element.ALIGN_TOP);
+	    annotazioni.addElement(creaCampo(properties.getProperty("DDT_LABEL_ANNOTAZIONI", "Annotazioni"), " "));
 
-	    tabella.addCell(annotazioniLabel);
-	    tabella.addCell(annotazioniInfo);
+	    PdfPCell colli = new PdfPCell();
+	    colli.setPadding(0);
+	    colli.setVerticalAlignment(Element.ALIGN_TOP);
+	    colli.addElement(creaCampo(properties.getProperty("DDT_LABEL_COLLI", "Colli"), " "));
 
-		PdfPTable tabellaAnnotazioni = null;
-		tabellaAnnotazioni = new PdfPTable(pointColumnWidths);
-		tabellaAnnotazioni.setWidthPercentage(100);
-		tabellaAnnotazioni.setExtendLastRow(true);
+	    table.addCell(annotazioni);
+	    table.addCell(colli);
 
-	    PdfPCell headerAnnotazioni = new PdfPCell();
-	    headerAnnotazioni.setPadding(0);
-	    headerAnnotazioni.addElement(tabella);
-	    headerAnnotazioni.setBorder(Rectangle.BOX);
-	    tabellaAnnotazioni.addCell(headerAnnotazioni);
-
-		return tabellaAnnotazioni;
+		return table;
 	}
 	
 	private PdfPTable creaSezioneConclusiva() {
@@ -768,8 +720,59 @@ public class DdtGenerator {
 		return footer;
 	}
 
+	private Image creaImage() {
+		URL url = FrameworkUtil.getBundle(this.getClass()).getResource("DC_logo_righsided.png");
+
+		Image img = null;
+		try {
+			img = Image.getInstance(url);
+			img.scalePercent((float)10);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return img;
+	}
 
 	private PdfPTable creaSezioneMittenteDestinatario() {
+		PdfPTable table = null;
+		float[] pointColumnWidths = {99F, 2F, 99F};
+		table = new PdfPTable(pointColumnWidths);
+	    table.setWidthPercentage(100);
+	    table.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+	    table.getDefaultCell().setPadding(TAB_PADDING);
+	    table.getDefaultCell().setVerticalAlignment(Element.ALIGN_TOP);
+	    
+	    
+	    PdfPCell logo = new PdfPCell();
+	    logo.setBorder(Rectangle.NO_BORDER);
+	    logo.setVerticalAlignment(Element.ALIGN_MIDDLE);
+	    logo.addElement(creaImage());
+	    
+	    PdfPCell mittente = new PdfPCell();
+	    mittente.addElement(creaMittente());
+	    
+	    PdfPCell destinatario = new PdfPCell();
+	    destinatario.addElement(creaDestinatario());
+	    
+	    PdfPCell destinazione = new PdfPCell();
+	    destinazione.addElement(creaDestinazione());
+	    
+	    table.addCell(logo);
+	    table.addCell(creaSeparatore());
+	    table.addCell(destinazione);
+	    table.addCell(creaSeparatore());
+	    table.addCell(creaSeparatore());
+	    table.addCell(creaSeparatore());
+	    table.addCell(mittente);
+	    table.addCell(creaSeparatore());
+	    table.addCell(destinatario);
+
+		return table;
+	}
+	
+	private PdfPTable creaSezioneMittenteDestinatario_1() {
 		PdfPTable table = null;
 		float[] pointColumnWidths = {1F, 1F};
 		table = new PdfPTable(pointColumnWidths);
@@ -780,7 +783,7 @@ public class DdtGenerator {
 	    mittente.setPaddingLeft(0);
 //	    mittente.setMinimumHeight(50);
 	    mittente.setVerticalAlignment(Element.ALIGN_TOP);
-	    mittente.addElement(creaMittente());
+	    mittente.addElement(creaTabellaMittente());
 	    mittente.setBorder(Rectangle.NO_BORDER);
 	    table.addCell(mittente);
 	    
@@ -796,10 +799,10 @@ public class DdtGenerator {
 		return table;
 	}
 	
-	private PdfPTable creaMittente() {
+	private PdfPTable creaMit() {
 
 		float[] pointColumnWidths = {1F};
-		String mittenteLabelText = properties.getProperty("DDT_LABEL_MITTENTE", "Mittente:");
+		String mittenteLabelText = properties.getProperty("DDT_LABEL_MITTENTE", "Mittente");
 		String mittenteDenominazioneText = documentoDiTrasporto.getMittente().getDenominazione() + "\n";
 		String mittenteIndirizzoText = documentoDiTrasporto.getMittente().getIndirizzoAsString();
 		String mittentePIText = documentoDiTrasporto.getMittente().getPartitaIvaAsString();
@@ -909,52 +912,103 @@ public class DdtGenerator {
 		return destinatario;
 	}	
 	
-	private PdfPTable creaLuogoDestinazione() {
+	private PdfPTable creaMittente() {
 		
-		String luogoDestinazioneLabelText = properties.getProperty("DDT_LABEL_LUOGODESTINAZIONE", "Luogo di destinazione");
-		String luogoDestinazioneInfoText = "";
-		
-		if(documentoDiTrasporto.getLuogoDestinazione() != null) {
-			if(documentoDiTrasporto.getLuogoDestinazione().getDenominazione() != null && 
-					documentoDiTrasporto.getLuogoDestinazione().getDenominazione().length()>0) {
-				luogoDestinazioneInfoText = documentoDiTrasporto.getLuogoDestinazione().getDenominazione() + "\n";
-			}
-			luogoDestinazioneInfoText += documentoDiTrasporto.getLuogoDestinazione().getRecapitoAsString();
-		}
+		float[] pointColumnWidths = {1F};
+
+		String mittenteLabelText = properties.getProperty("DDT_LABEL_MITTENTE", "Mittente");;
+		String mittenteDenominazioneText = documentoDiTrasporto.getMittente().getDenominazione();
+		String mittenteIndirizzoText = documentoDiTrasporto.getMittente().getIndirizzoAsString();
+		String mittentePICFText = (documentoDiTrasporto.getMittente().getPartitaIva() != null &&
+										documentoDiTrasporto.getMittente().getPartitaIva().length()>0)
+				? documentoDiTrasporto.getMittente().getPartitaIvaAsString()
+				: documentoDiTrasporto.getMittente().getCodiceFiscaleAsString();
 		
 		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
-	    Paragraph paragrafoLabel = new Paragraph(luogoDestinazioneLabelText, fontLabel);
+	    Paragraph paragrafoLabel = new Paragraph(mittenteLabelText, fontLabel);
 	    paragrafoLabel.setLeading(0, 1);
 
-	    Font fontInfo = new Font(FontFamily.HELVETICA, 8, Font.NORMAL);
-	    Paragraph paragrafoInfo = new Paragraph(luogoDestinazioneInfoText, fontInfo);
-	    paragrafoInfo.setLeading(0, 1);
+	    Font fontDenominazione = new Font(FontFamily.HELVETICA, 8, Font.BOLD);
+	    Paragraph paragrafoDenominazione = new Paragraph(mittenteDenominazioneText, fontDenominazione);
+	    paragrafoDenominazione.setLeading(0, 1);
 
-		
-		PdfPTable luogoDestinazione = null;
-		float[] pointColumnWidths = {1F};
-		luogoDestinazione = new PdfPTable(pointColumnWidths);
-		luogoDestinazione.setWidthPercentage(100);
-	    
-	    PdfPCell luogoDestinazioneLabel = new PdfPCell();
-	    luogoDestinazioneLabel.setPadding(TAB_PADDING);
-	    luogoDestinazioneLabel.setFixedHeight(20);
-	    luogoDestinazioneLabel.setVerticalAlignment(Element.ALIGN_TOP);
-	    luogoDestinazioneLabel.addElement(paragrafoLabel);
-	    luogoDestinazioneLabel.setBorder(Rectangle.NO_BORDER);
-	    
-	    PdfPCell luogoDestinazioneInfo = new PdfPCell();
-	    luogoDestinazioneInfo.setPadding(TAB_PADDING);
-	    luogoDestinazioneInfo.setMinimumHeight(50);
-	    luogoDestinazioneInfo.setVerticalAlignment(Element.ALIGN_TOP);
-	    luogoDestinazioneInfo.addElement(paragrafoInfo);
-	    luogoDestinazioneInfo.setBorder(Rectangle.NO_BORDER);
+	    Font fontIndirizzo = new Font(FontFamily.HELVETICA, 8, Font.NORMAL);
+	    Paragraph paragrafoIndirizzo = new Paragraph(mittenteIndirizzoText, fontIndirizzo);
+	    paragrafoIndirizzo.setLeading(0, 1);
 
-	    luogoDestinazione.addCell(luogoDestinazioneLabel);
-	    luogoDestinazione.addCell(luogoDestinazioneInfo);
-		return luogoDestinazione;
+	    Font fontPartitaIva = new Font(FontFamily.HELVETICA, 8, Font.NORMAL);
+	    Paragraph paragrafoPartitaIva = new Paragraph(mittentePICFText, fontPartitaIva);
+	    paragrafoIndirizzo.setLeading(0, 1);
+
+	    PdfPTable mittente = null;
+		mittente = new PdfPTable(pointColumnWidths);
+	    mittente.setWidthPercentage(100);
+	    
+	    PdfPCell mittenteLabel = new PdfPCell();
+	    mittenteLabel.setPadding(TAB_PADDING);
+	    mittenteLabel.setFixedHeight(20);
+	    mittenteLabel.setVerticalAlignment(Element.ALIGN_TOP);
+	    mittenteLabel.addElement(paragrafoLabel);
+	    mittenteLabel.setBorder(Rectangle.NO_BORDER);
+	    
+	    PdfPCell mittenteInfo = new PdfPCell();
+	    mittenteInfo.setPadding(TAB_PADDING);
+	    mittenteInfo.setMinimumHeight(50);
+	    mittenteInfo.setVerticalAlignment(Element.ALIGN_TOP);
+	    mittenteInfo.addElement(paragrafoDenominazione);
+	    mittenteInfo.addElement(paragrafoIndirizzo);
+	    mittenteInfo.addElement(paragrafoPartitaIva);
+	    mittenteInfo.setBorder(Rectangle.NO_BORDER);
+
+	    mittente.addCell(mittenteLabel);
+	    mittente.addCell(mittenteInfo);
+		return mittente;
 	}	
 	
+	private PdfPTable creaDestinazione() {
+		
+		float[] pointColumnWidths = {1F};
+
+		String destinazioneLabelText = properties.getProperty("DDT_LABEL_DESTINAZIONE", "Luogo di destinazione");
+		String destinazioneDenominazioneText = documentoDiTrasporto.getDestinazione().getDenominazione();
+		String destinazioneIndirizzoText = documentoDiTrasporto.getDestinazione().getRecapitoAsString();
+		
+		Font fontLabel = new Font(FontFamily.HELVETICA, 10, Font.BOLD);
+	    Paragraph paragrafoLabel = new Paragraph(destinazioneLabelText, fontLabel);
+	    paragrafoLabel.setLeading(0, 1);
+
+	    Font fontDenominazione = new Font(FontFamily.HELVETICA, 8, Font.BOLD);
+	    Paragraph paragrafoDenominazione = new Paragraph(destinazioneDenominazioneText, fontDenominazione);
+	    paragrafoDenominazione.setLeading(0, 1);
+
+	    Font fontIndirizzo = new Font(FontFamily.HELVETICA, 8, Font.NORMAL);
+	    Paragraph paragrafoIndirizzo = new Paragraph(destinazioneIndirizzoText, fontIndirizzo);
+	    paragrafoIndirizzo.setLeading(0, 1);
+
+	    PdfPTable destinazione = null;
+		destinazione = new PdfPTable(pointColumnWidths);
+	    destinazione.setWidthPercentage(100);
+	    
+	    PdfPCell destinazioneLabel = new PdfPCell();
+	    destinazioneLabel.setPadding(TAB_PADDING);
+	    destinazioneLabel.setFixedHeight(20);
+	    destinazioneLabel.setVerticalAlignment(Element.ALIGN_TOP);
+	    destinazioneLabel.addElement(paragrafoLabel);
+	    destinazioneLabel.setBorder(Rectangle.NO_BORDER);
+	    
+	    PdfPCell destinazioneInfo = new PdfPCell();
+	    destinazioneInfo.setPadding(TAB_PADDING);
+	    destinazioneInfo.setMinimumHeight(50);
+	    destinazioneInfo.setVerticalAlignment(Element.ALIGN_TOP);
+	    destinazioneInfo.addElement(paragrafoDenominazione);
+	    destinazioneInfo.addElement(paragrafoIndirizzo);
+	    destinazioneInfo.setBorder(Rectangle.NO_BORDER);
+
+	    destinazione.addCell(destinazioneLabel);
+	    destinazione.addCell(destinazioneInfo);
+		return destinazione;
+	}	
+
 	private PdfPTable creaTabellaDestinatario() {
 		PdfPTable destinatario = null;
 		float[] pointColumnWidths = {1F};
@@ -971,11 +1025,44 @@ public class DdtGenerator {
 
 	    PdfPCell headerLuogoDestinatario = new PdfPCell();
 	    headerLuogoDestinatario.setPaddingTop(0);
-	    headerLuogoDestinatario.addElement(creaLuogoDestinazione());
+	    headerLuogoDestinatario.addElement(creaDestinazione());
 	    headerLuogoDestinatario.setBorder(Rectangle.BOX);
 	    destinatario.addCell(headerLuogoDestinatario);
 
 		return destinatario;
+	}
+	
+	private PdfPTable creaTabellaMittente() {
+		PdfPTable mittente = null;
+		float[] pointColumnWidths = {1F};
+		mittente = new PdfPTable(pointColumnWidths);
+		mittente.setWidthPercentage(100);
+		
+		URL url = FrameworkUtil.getBundle(this.getClass()).getResource("DC_logo_righsided.png");
+		System.out.println("url: " + url);
+		Image img = null;
+		try {
+			img = Image.getInstance(url);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	    PdfPCell headerLogo = new PdfPCell();
+	    headerLogo.setPaddingTop(0);
+	    headerLogo.addElement(img);
+	    headerLogo.setBorder(Rectangle.NO_BORDER);
+	    mittente.addCell(headerLogo);
+
+	    mittente.addCell(creaSeparatore());
+
+	    PdfPCell headerMittente = new PdfPCell();
+	    headerMittente.setPaddingBottom(0);
+	    headerMittente.addElement(creaMittente());
+	    headerMittente.setBorder(Rectangle.BOX);
+	    mittente.addCell(headerMittente);
+
+		return mittente;
 	}
 	
 	private PdfPTable creaCampo(String nome, String valore) {

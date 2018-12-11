@@ -29,10 +29,11 @@ public class DDT {
 	private String causaleTrasporto;
 	private String vettore;
 	private String annotazioni;
+	private String colli;
 
 	private Mittente mittente;
 	private Destinatario destinatario;
-	private LuogoDestinazione luogoDestinazione;
+	private Destinazione destinazione;
 	private Vector<Articolo>articoli;
 	
 	public String getTipoDocumento() {
@@ -83,11 +84,11 @@ public class DDT {
 	public void setDestinatario(Destinatario destinatario) {
 		this.destinatario = destinatario;
 	}
-	public LuogoDestinazione getLuogoDestinazione() {
-		return luogoDestinazione;
+	public Destinazione getDestinazione() {
+		return destinazione;
 	}
-	public void setLuogoDestinazione(LuogoDestinazione luogoDestinazione) {
-		this.luogoDestinazione = luogoDestinazione;
+	public void setDestinazione(Destinazione destinazione) {
+		this.destinazione = destinazione;
 	}
 	public Vector<Articolo> getArticoli() {
 		return articoli;
@@ -95,4 +96,11 @@ public class DDT {
 	public void setArticoli(Vector<Articolo> articoli) {
 		this.articoli = articoli;
 	}
+	public String getColli() {
+		return colli;
+	}
+	public void setColli(String colli) {
+		this.colli = colli;
+	}
+	
 }

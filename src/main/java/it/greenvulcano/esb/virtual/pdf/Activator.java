@@ -19,6 +19,8 @@
  *******************************************************************************/
 package it.greenvulcano.esb.virtual.pdf;
 
+import java.net.URL;
+
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 
@@ -30,7 +32,6 @@ public class Activator implements BundleActivator {
 	public void start(BundleContext context) throws Exception {
 		OperationFactory.registerSupplier("ddt-call", DDTCallOperation::new);
 		OperationFactory.registerSupplier("html2pdf-call", HTML2PDFCallOperation::new);
-
 	}
 
 	@Override
