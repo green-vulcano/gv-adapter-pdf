@@ -425,7 +425,7 @@ public class DdtGenerator {
 	    
 		Font fontLabel = new Font(FontFamily.HELVETICA, 8, Font.BOLD);
 
-	    String codiceText = properties.getProperty("DDT_LABEL_CODICE", "codice");
+	    String codiceText = properties.getProperty("DDT_LABEL_CODICE", "DC_ID");
 	    PdfPCell codice = new PdfPCell();
 	    Paragraph codiceParagrafo = new Paragraph(codiceText, fontLabel);
 	    codiceParagrafo.setAlignment(Element.ALIGN_CENTER);
