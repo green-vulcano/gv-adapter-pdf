@@ -5,14 +5,14 @@
 
 	<groupId>it.greenvulcano.gvesb.adapter</groupId>
 	<artifactId>gv-adapter-pdf</artifactId>
-	<version>4.1.0</version>
+	<version>4.1.2</version>
 	<packaging>bundle</packaging>
 
 	<name>GreenVulcano ESB adapter plugin</name>
 
 	<properties>
 		<osgi.version>5.0.0</osgi.version>
-		<gvesb.version>4.1.0</gvesb.version>
+		<gvesb.version>4.1.2</gvesb.version>
 		<maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
 		<maven-bundle-plugin.version>3.0.1</maven-bundle-plugin.version>
 		<itext-version>5.5.13</itext-version>
@@ -155,7 +155,7 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.commons</groupId>
+			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>${commons-io-version}</version>
 			<scope>provided</scope>
@@ -183,7 +183,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven-compiler-plugin.version}</version>
 				<configuration>
-					<release>11</release>
+					<source>1.8</source>
+					<target>1.8</target>
 				</configuration>
 			</plugin>
 			<plugin>
